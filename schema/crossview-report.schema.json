@@ -1,0 +1,335 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/<you>/crossview/schema/crossview-report.schema.json",
+  "title": "libcrossview scan report",
+  "description": "Output of cv_report_to_json(). v0.1.0 design draft.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "tool",
+    "host",
+    "scan",
+    "views",
+    "findings"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "tool": {
+      "type": "object",
+      "required": [
+        "name",
+        "version",
+        "abi"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "const": "libcrossview"
+        },
+        "version": {
+          "type": "string"
+        },
+        "abi": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "host": {
+      "type": "object",
+      "required": [
+        "hostname",
+        "kernel_release",
+        "boot_id",
+        "euid",
+        "syscall_dispatch"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "hostname": {
+          "type": "string"
+        },
+        "kernel_release": {
+          "type": "string",
+          "description": "uname -r"
+        },
+        "boot_id": {
+          "type": "string",
+          "description": "/proc/sys/kernel/random/boot_id; later used to join with eBPF sensor events"
+        },
+        "euid": {
+          "type": "integer",
+          "description": "0 = ran as root; non-root scans have views marked 'perm'"
+        },
+        "syscall_dispatch": {
+          "enum": [
+            "table",
+            "switch",
+            "unknown"
+          ],
+          "description": "x86_64: 'switch' if x64_sys_call appears in /proc/kallsyms (kernels with the 2024 BHI dispatch change), where sys_call_table hooks are inert"
+        }
+      }
+    },
+    "scan": {
+      "type": "object",
+      "required": [
+        "started_at",
+        "duration_ms",
+        "checks",
+        "config"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "duration_ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/check"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "config": {
+          "type": "object",
+          "required": [
+            "pid_max",
+            "recheck_rounds",
+            "recheck_delay_ms",
+            "skip_threads",
+            "bind_probe"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "pid_max": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "recheck_rounds": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "recheck_delay_ms": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "skip_threads": {
+              "type": "boolean"
+            },
+            "port_protos": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "tcp",
+                  "tcp6",
+                  "udp",
+                  "udp6"
+                ]
+              }
+            },
+            "bind_probe": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "views": {
+      "description": "One entry per view consulted. A failed view is reported here, not silently dropped.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "view",
+          "check",
+          "status",
+          "entries",
+          "elapsed_ms"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "view": {
+            "$ref": "#/$defs/view"
+          },
+          "check": {
+            "$ref": "#/$defs/check"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "inval",
+              "nomem",
+              "io",
+              "perm",
+              "unsupported",
+              "internal"
+            ]
+          },
+          "errno": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "entries": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "elapsed_ms": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    }
+  },
+  "$defs": {
+    "check": {
+      "enum": [
+        "processes",
+        "modules",
+        "ports",
+        "preload"
+      ]
+    },
+    "view": {
+      "enum": [
+        "proc_readdir",
+        "proc_getdents",
+        "pid_kill",
+        "pid_stat",
+        "proc_modules",
+        "sys_module",
+        "kernel_taint",
+        "proc_net",
+        "bind_probe",
+        "preload_libc",
+        "preload_raw",
+        "proc_environ",
+        "proc_maps",
+        "self_symbols"
+      ]
+    },
+    "finding": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "check",
+        "subject",
+        "seen_in",
+        "missing_from",
+        "layer",
+        "confidence",
+        "confirmations",
+        "attack",
+        "detail"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable within a scan, e.g. 'processes/pid/4242'. Lets Python dedupe across repeated scans."
+        },
+        "type": {
+          "enum": [
+            "mismatch",
+            "indicator"
+          ],
+          "description": "mismatch: views disagree. indicator: views agree but the agreed fact is itself suspicious (non-empty ld.so.preload, interposed libc symbol)."
+        },
+        "check": {
+          "$ref": "#/$defs/check"
+        },
+        "subject": {
+          "type": "object",
+          "required": [
+            "kind",
+            "id",
+            "name"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "pid",
+                "module",
+                "port",
+                "file",
+                "symbol"
+              ]
+            },
+            "id": {
+              "type": "integer",
+              "description": "pid or port number; 0 for module/file/symbol"
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        },
+        "seen_in": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/view"
+          },
+          "uniqueItems": true
+        },
+        "missing_from": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/view"
+          },
+          "uniqueItems": true,
+          "description": "empty for indicator findings"
+        },
+        "layer": {
+          "enum": [
+            "userspace",
+            "kernel",
+            "unknown"
+          ]
+        },
+        "confidence": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "confirmations": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "attack": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^T\\d{4}(\\.\\d{3})?$"
+          },
+          "description": "MITRE ATT&CK technique IDs"
+        },
+        "detail": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

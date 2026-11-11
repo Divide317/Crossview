@@ -1,0 +1,30 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang clang-tidy valgrind python3-pip
+          pip3 install pytest jsonschema ruff
+      - name: Build (release, zero warnings)
+        run: make CC=gcc 2>&1 | tee build.log && ! grep -q warning build.log
+      - name: Build with clang
+        run: make clean && make CC=clang 2>&1 | tee build-clang.log && ! grep -q warning build-clang.log
+      - name: C tests under ASan + UBSan
+        run: make test
+      - name: C tests under valgrind
+        run: make valgrind
+      - name: clang-tidy
+        run: make tidy
+      - name: ruff
+        run: ruff check python
+      - name: Python tests
+        run: make pytest

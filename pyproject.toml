@@ -1,0 +1,20 @@
+[project]
+name = "crossview"
+version = "0.1.0"
+description = "Cross-view Linux rootkit detector: C data plane, Python control plane"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+
+[project.scripts]
+crossview = "crossview.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["python"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py39"
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]
+pythonpath = ["python"]
