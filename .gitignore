@@ -1,0 +1,11 @@
+build/
+build-asan/
+bpf/*.o
+bpf/*.skel.h
+bpf/vmlinux.h
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.tgz
+eval/results/*.jsonl

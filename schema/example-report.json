@@ -1,0 +1,175 @@
+{
+  "schema_version": "0.1.0",
+  "tool": {
+    "name": "libcrossview",
+    "version": "0.1.0-dev",
+    "abi": 0
+  },
+  "host": {
+    "hostname": "rk-lab",
+    "kernel_release": "6.1.0-18-amd64",
+    "boot_id": "3f6c2a1e-8d4b-4c47-9a0e-2b7f5d1c9e44",
+    "euid": 0,
+    "syscall_dispatch": "table"
+  },
+  "scan": {
+    "started_at": "2026-12-14T10:32:05Z",
+    "duration_ms": 1840.2,
+    "checks": [
+      "processes",
+      "modules",
+      "preload"
+    ],
+    "config": {
+      "pid_max": 4194304,
+      "recheck_rounds": 3,
+      "recheck_delay_ms": 50,
+      "skip_threads": true,
+      "bind_probe": false
+    }
+  },
+  "views": [
+    {
+      "view": "proc_readdir",
+      "check": "processes",
+      "status": "ok",
+      "errno": null,
+      "entries": 141,
+      "elapsed_ms": 1.9
+    },
+    {
+      "view": "proc_getdents",
+      "check": "processes",
+      "status": "ok",
+      "errno": null,
+      "entries": 142,
+      "elapsed_ms": 0.7
+    },
+    {
+      "view": "pid_kill",
+      "check": "processes",
+      "status": "ok",
+      "errno": null,
+      "entries": 142,
+      "elapsed_ms": 1712.4
+    },
+    {
+      "view": "pid_stat",
+      "check": "processes",
+      "status": "ok",
+      "errno": null,
+      "entries": 142,
+      "elapsed_ms": 3.1
+    },
+    {
+      "view": "proc_modules",
+      "check": "modules",
+      "status": "ok",
+      "errno": null,
+      "entries": 58,
+      "elapsed_ms": 0.4
+    },
+    {
+      "view": "sys_module",
+      "check": "modules",
+      "status": "ok",
+      "errno": null,
+      "entries": 58,
+      "elapsed_ms": 2.2
+    },
+    {
+      "view": "preload_libc",
+      "check": "preload",
+      "status": "ok",
+      "errno": null,
+      "entries": 1,
+      "elapsed_ms": 0.1
+    },
+    {
+      "view": "preload_raw",
+      "check": "preload",
+      "status": "ok",
+      "errno": null,
+      "entries": 1,
+      "elapsed_ms": 0.1
+    },
+    {
+      "view": "self_symbols",
+      "check": "preload",
+      "status": "ok",
+      "errno": null,
+      "entries": 1,
+      "elapsed_ms": 0.2
+    }
+  ],
+  "findings": [
+    {
+      "id": "processes/pid/4242",
+      "type": "mismatch",
+      "check": "processes",
+      "subject": {
+        "kind": "pid",
+        "id": 4242,
+        "name": "evil_script.py"
+      },
+      "seen_in": [
+        "proc_getdents",
+        "pid_kill",
+        "pid_stat"
+      ],
+      "missing_from": [
+        "proc_readdir"
+      ],
+      "layer": "userspace",
+      "confidence": "high",
+      "confirmations": 3,
+      "attack": [
+        "T1574.006"
+      ],
+      "detail": "PID listed by raw getdents64 but not by libc readdir: a userland hook is filtering /proc"
+    },
+    {
+      "id": "preload/file/etc/ld.so.preload",
+      "type": "indicator",
+      "check": "preload",
+      "subject": {
+        "kind": "file",
+        "id": 0,
+        "name": "/etc/ld.so.preload"
+      },
+      "seen_in": [
+        "preload_libc",
+        "preload_raw"
+      ],
+      "missing_from": [],
+      "layer": "userspace",
+      "confidence": "medium",
+      "confirmations": 1,
+      "attack": [
+        "T1574.006"
+      ],
+      "detail": "/etc/ld.so.preload is non-empty: /usr/local/lib/libprocesshider.so"
+    },
+    {
+      "id": "preload/symbol/readdir",
+      "type": "indicator",
+      "check": "preload",
+      "subject": {
+        "kind": "symbol",
+        "id": 0,
+        "name": "readdir@/usr/local/lib/libprocesshider.so"
+      },
+      "seen_in": [
+        "self_symbols"
+      ],
+      "missing_from": [],
+      "layer": "userspace",
+      "confidence": "high",
+      "confirmations": 1,
+      "attack": [
+        "T1574.006"
+      ],
+      "detail": "readdir in this process resolves to a non-libc object"
+    }
+  ]
+}
