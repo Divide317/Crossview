@@ -1,5 +1,7 @@
 # crossview
 
+[![ci](https://github.com/Divide317/Crossview/actions/workflows/ci.yml/badge.svg)](https://github.com/Divide317/Crossview/actions/workflows/ci.yml)
+
 A Linux rootkit detector built on **cross-view analysis**: ask the operating
 system the same question through several independent interfaces and compare
 the answers. A rootkit has to lie consistently through *every* interface, and
