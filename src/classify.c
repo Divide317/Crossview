@@ -13,6 +13,13 @@
  *   ✗ ✗ ✓ ✓   kernel's directory listing lies           kernel (getdents hook)
  *   ✗ ✗ ✗ ✓   only the signal path admits it exists     kernel (deeper hiding)
  *   ✓ ✓ ✗ ✗   listed but not probe-able                 unknown (usually exited mid-scan)
+ *   ✗ ✗ ✗ ✗   seen by nothing: gone, not hidden          - (never a finding)
+ *
+ * The last row matters for the recheck loop, which rebuilds each candidate
+ * from fresh observations. A process that exited mid-scan comes back seen
+ * by nothing, and "every view now agrees it doesn't exist" is agreement,
+ * not a mismatch. (Something hidden from every view can't be seen by any
+ * cross-view check at all, so this gives up no detection.)
  */
 #include "internal.h"
 
@@ -40,6 +47,7 @@ static bool classify_process(const cv_subject *s, uint32_t ran, cv_finding *f)
     ran &= (R | G | S | K);
     uint32_t seen = s->seen_mask & ran;
     if (seen == ran) return false;                         /* every view agrees */
+    if (!seen) return false;                               /* gone everywhere: exited */
 
     base(f, CV_CHECK_PROCESSES, s);
     f->queried = ran;
@@ -116,6 +124,7 @@ static bool classify_module(const cv_subject *s, uint32_t ran, cv_finding *f)
     ran &= (P | Y);
     uint32_t seen = s->seen_mask & ran;
     if (seen == ran) return false;
+    if (!seen) return false;                               /* gone everywhere: unloaded */
     base(f, CV_CHECK_MODULES, s);
     f->queried = ran;
     if ((seen & Y) && !(seen & P)) {
